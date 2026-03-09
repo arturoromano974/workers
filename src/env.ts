@@ -19,6 +19,8 @@ export type Env = {
 	FALLBACK_ORIGIN?: string;
 	// Optional: API token with SSL permissions for custom hostname support
 	CLOUDFLARE_API_TOKEN?: string;
+	// Optional: Facebook API token for Ads Library access
+	FACEBOOK_ACCESS_TOKEN?: string;
 };
 
 interface Dispatcher {

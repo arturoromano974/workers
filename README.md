@@ -16,6 +16,7 @@ Build your own website hosting platform using [Cloudflare Workers for Platforms]
 - **Subdomain Routing** - Each site gets `sitename.yourdomain.com`
 - **Custom Domains** - Users can connect their own domains with automatic TLS certificates (powered by custom hostnames)
 - **Admin Dashboard** - Manage all sites and monitor deployment status at `/admin`
+- **Facebook Ads Library Integration** - Search Facebook Ads and find accounts with 50+ ads (see [FACEBOOK_ADS_INTEGRATION.md](FACEBOOK_ADS_INTEGRATION.md))
 
 ## How It Works
 
