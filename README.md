@@ -183,6 +183,28 @@ npx wrangler tail
 
 ---
 
+## Additional Tools
+
+### Facebook Ads Library Scraper
+
+This repository includes a tool for scraping the Facebook Ads Library to find accounts with 50+ ads. See [`FACEBOOK_ADS_SCRAPER.md`](./FACEBOOK_ADS_SCRAPER.md) for details.
+
+**Quick Start:**
+```bash
+# Install Playwright
+npm install playwright
+
+# Run the scraper
+node scripts/scrape-facebook-ads.js --query="emagrecimento" --country="BR" --minAds=50
+```
+
+**Files:**
+- `scripts/scrape-facebook-ads.js` - Standalone Node.js scraper using Playwright
+- `src/facebook-ads-scraper.ts` - Cloudflare Worker template (requires external browser service)
+- `FACEBOOK_ADS_SCRAPER.md` - Full documentation
+
+---
+
 ## Learn More
 
 - [Workers for Platforms Docs](https://developers.cloudflare.com/cloudflare-for-platforms/workers-for-platforms/)
