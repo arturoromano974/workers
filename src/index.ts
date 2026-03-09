@@ -47,6 +47,7 @@ import {
 	getCustomHostnameStatus,
 } from "./cloudflare-api";
 import { D1QB } from "workers-qb";
+import { findFacebookAccountsWith50PlusAds } from "./facebook-ads";
 
 // Initialize Hono app with type-safe environment bindings
 const app = new Hono<{ Bindings: Env }>();
@@ -684,5 +685,77 @@ app.get(
 		}
 	},
 );
+
+/**
+ * Facebook Ads Library Search Endpoint
+ *
+ * Search for Facebook ads and find accounts with 50+ ads
+ *
+ * Query parameters:
+ * - search: Search term (e.g., "emagrecimento")
+ * - country: Country code (default: BR)
+ *
+ * Example: /facebook-ads/search?search=emagrecimento&country=BR
+ */
+app.get("/facebook-ads/search", async (c) => {
+	try {
+		// Check if Facebook access token is configured
+		const accessToken = c.env.FACEBOOK_ACCESS_TOKEN;
+		if (!accessToken) {
+			return c.json({
+				error: "Facebook API not configured",
+				message: "Please set FACEBOOK_ACCESS_TOKEN environment variable. Get your token at: https://developers.facebook.com/tools/accesstoken/"
+			}, 500);
+		}
+
+		// Get query parameters
+		const searchTerm = c.req.query("search");
+		const country = c.req.query("country") || "BR";
+
+		if (!searchTerm) {
+			return c.json({
+				error: "Missing required parameter",
+				message: "Please provide a 'search' query parameter"
+			}, 400);
+		}
+
+		// Search for ads and find accounts with 50+ ads
+		const results = await findFacebookAccountsWith50PlusAds(
+			accessToken,
+			searchTerm,
+			country
+		);
+
+		// Format response
+		return c.json({
+			success: true,
+			search_term: searchTerm,
+			country: country,
+			total_ads_found: results.total_ads,
+			total_accounts: results.total_accounts,
+			accounts_with_50_plus_ads: results.accounts_with_50_plus_ads.length,
+			accounts: results.accounts_with_50_plus_ads.map(account => ({
+				page_id: account.page_id,
+				page_name: account.page_name,
+				ad_count: account.ad_count,
+				profile_url: account.profile_url,
+				sample_ad_urls: account.ads.slice(0, 5).map(ad => ad.ad_snapshot_url)
+			})),
+			top_accounts: results.top_accounts.map(account => ({
+				page_id: account.page_id,
+				page_name: account.page_name,
+				ad_count: account.ad_count,
+				profile_url: account.profile_url
+			}))
+		});
+	} catch (error) {
+		const errorMessage = error instanceof Error ? error.message : "Unknown error";
+		console.error("Facebook Ads search error:", errorMessage);
+		return c.json({
+			error: "Failed to search Facebook ads",
+			message: errorMessage
+		}, 500);
+	}
+});
 
 export default app;
