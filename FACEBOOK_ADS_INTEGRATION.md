@@ -72,6 +72,13 @@ curl "https://your-worker.workers.dev/facebook-ads/search?search=emagrecimento&c
 curl "https://your-worker.workers.dev/facebook-ads/search?search=fitness&country=US"
 ```
 
+For a complete example response with all fields, see [examples/example-response.md](examples/example-response.md).
+
+You can also use the provided bash script:
+```bash
+./examples/facebook-ads-search.sh "emagrecimento" "BR"
+```
+
 ### Example Response
 
 ```json
