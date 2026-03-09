@@ -1227,7 +1227,7 @@ export const BuildFacebookAdsLookupSection = `
       <textarea id="adsLibraryHtml" name="adsLibraryHtml" rows="8" placeholder="Paste Ads Library HTML here if automatic fetching is blocked."></textarea>
       <small>This is useful when you capture the page with a browser tool and want to reuse that HTML for extraction.</small>
     </div>
-    <button type="submit" class="btn btn-primary btn-lg" style="width: 100%;">Find Facebook accounts with 50+ ads</button>
+    <button type="submit" class="btn btn-primary btn-lg" style="width: 100%;">Find Facebook accounts</button>
   </form>
 </div>
 

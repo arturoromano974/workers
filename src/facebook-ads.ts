@@ -8,6 +8,8 @@ const DEFAULT_MIN_ADS = 50;
 const MAX_MIN_ADS = 100000;
 const MAX_HTML_LENGTH = 2_000_000;
 const JSON_FIELD_WINDOW = 300;
+const ANCHOR_FORWARD_WINDOW = 300;
+const ANCHOR_BACKWARD_WINDOW = 80;
 
 const COUNT_PATTERN =
 	/(\d{1,3}(?:[.,]\d{3})*|\d+)\s*\+?\s*(?:active\s+)?(?:ads?|anúncios?)/gi;
@@ -122,13 +124,16 @@ export function extractFacebookAdsAccounts(
 		const matchIndex = match.index ?? 0;
 		const forwardWindowEnd = Math.min(
 			normalizedHtml.length,
-			matchIndex + match[0].length + 300,
+			matchIndex + match[0].length + ANCHOR_FORWARD_WINDOW,
 		);
 		const forwardText = stripTags(
 			normalizedHtml.slice(matchIndex, forwardWindowEnd),
 		);
 		const backwardText = stripTags(
-			normalizedHtml.slice(Math.max(0, matchIndex - 80), matchIndex + match[0].length),
+			normalizedHtml.slice(
+				Math.max(0, matchIndex - ANCHOR_BACKWARD_WINDOW),
+				matchIndex + match[0].length,
+			),
 		);
 		const adCount =
 			extractHighestAdCount(forwardText) ?? extractHighestAdCount(backwardText);
@@ -261,10 +266,10 @@ function decodeHtmlEntities(value: string): string {
 		.replace(/&#34;/g, '"')
 		.replace(/&apos;/g, "'")
 		.replace(/&#39;/g, "'")
-		.replace(/&amp;/g, "&")
 		.replace(/&lt;/g, "<")
 		.replace(/&gt;/g, ">")
 		.replace(/&#(\d+);/g, (_, code) =>
 			String.fromCodePoint(Number.parseInt(code, 10)),
-		);
+		)
+		.replace(/&amp;/g, "&");
 }
