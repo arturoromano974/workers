@@ -42,6 +42,7 @@ describe("Workers for Platforms Template", () => {
 			const html = await response.text();
 			expect(html).toContain("Build a Website");
 			expect(html).toContain("projectForm");
+			expect(html).toContain("Facebook Ads Library Finder");
 		});
 
 		it("should include the tab switcher for code/upload modes", async () => {
@@ -59,6 +60,56 @@ describe("Workers for Platforms Template", () => {
 
 			expect(html).toContain("export default");
 			expect(html).toContain("async fetch(request, env, ctx)");
+		});
+	});
+
+	describe("Facebook Ads Library Finder", () => {
+		it("should extract facebook account links with at least 50 ads from pasted html", async () => {
+			const sampleHtml = `
+        <div class="card">
+          <a href="/clinicafitbr">Clínica Fit BR</a>
+          <span>61 ads</span>
+        </div>
+        <div class="card">
+          <a href="https://www.facebook.com/emagrecercomsaude">Emagrecer com Saúde</a>
+          <span>12 ads</span>
+        </div>
+      `;
+
+			const response = await makeRequest("/facebook-ads/search", {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/x-www-form-urlencoded",
+				},
+				body: new URLSearchParams({
+					adsLibraryHtml: sampleHtml,
+					minAds: "50",
+				}),
+			});
+
+			expect(response.status).toBe(200);
+			const html = await response.text();
+			expect(html).toContain("Facebook Ads Library results");
+			expect(html).toContain("Clínica Fit BR");
+			expect(html).toContain("61");
+			expect(html).toContain("https://www.facebook.com/clinicafitbr");
+			expect(html).not.toContain("emagrecercomsaude");
+		});
+
+		it("should reject non-facebook urls when auto-fetching", async () => {
+			const response = await makeRequest("/facebook-ads/search", {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/x-www-form-urlencoded",
+				},
+				body: new URLSearchParams({
+					adsLibraryUrl: "https://example.com/ads/library/?q=emagrecimento",
+				}),
+			});
+
+			expect(response.status).toBe(400);
+			const html = await response.text();
+			expect(html).toContain("valid Facebook Ads Library HTTPS URL");
 		});
 	});
 

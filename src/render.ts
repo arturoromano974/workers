@@ -1208,6 +1208,31 @@ ${body}
 </html>
 `;
 
+export const BuildFacebookAdsLookupSection = `
+<div class="form-container">
+  <h3>Facebook Ads Library Finder</h3>
+  <p style="color: var(--kumo-muted-foreground); margin-bottom: 20px;">Paste a Facebook Ads Library URL and optionally the page HTML to extract advertiser account links with 50+ ads from the same account.</p>
+  <form method="post" action="/facebook-ads/search">
+    <div class="form-group">
+      <label for="adsLibraryUrl">Ads Library URL</label>
+      <input type="url" id="adsLibraryUrl" name="adsLibraryUrl" placeholder="https://web.facebook.com/ads/library/?q=emagrecimento" />
+      <small>Only Facebook Ads Library HTTPS URLs are accepted when fetching automatically.</small>
+    </div>
+    <div class="form-group">
+      <label for="minAds">Minimum ads per account</label>
+      <input type="number" id="minAds" name="minAds" min="1" value="50" />
+    </div>
+    <div class="form-group">
+      <label for="adsLibraryHtml">Optional page HTML</label>
+      <textarea id="adsLibraryHtml" name="adsLibraryHtml" rows="8" placeholder="Paste Ads Library HTML here if automatic fetching is blocked."></textarea>
+      <small>This is useful when you capture the page with a browser tool and want to reuse that HTML for extraction.</small>
+    </div>
+    <button type="submit" class="btn btn-primary btn-lg" style="width: 100%;">Find Facebook accounts</button>
+  </form>
+</div>
+
+`;
+
 export const BuildWebsitePage = `
 <div class="form-container">
   <form id="projectForm">

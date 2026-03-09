@@ -40,13 +40,23 @@ import {
 	checkEnvConfig,
 } from "./resource";
 import { handleDispatchError, withDb } from "./router";
-import { renderPage, BuildTable, BuildWebsitePage } from "./render";
+import {
+	renderPage,
+	BuildTable,
+	BuildWebsitePage,
+	BuildFacebookAdsLookupSection,
+} from "./render";
 import { Project } from "./types";
 import {
 	createCustomHostname,
 	getCustomHostnameStatus,
 } from "./cloudflare-api";
 import { D1QB } from "workers-qb";
+import {
+	extractFacebookAdsAccounts,
+	resolveFacebookAdsLibraryHtml,
+	sanitizeMinAds,
+} from "./facebook-ads";
 
 // Initialize Hono app with type-safe environment bindings
 const app = new Hono<{ Bindings: Env }>();
@@ -155,6 +165,7 @@ app.use("*", withDbAndInit, async (c, next) => {
 					"upload",
 					"init",
 					"dispatch",
+					"facebook-ads",
 					"favicon.ico",
 				].includes(subdomain)
 			) {
@@ -226,7 +237,80 @@ app.get("/favicon.ico", () => {
  */
 app.get("/", (c) => {
 	const customDomain = c.env.CUSTOM_DOMAIN;
-	return c.html(renderPage(BuildWebsitePage, { customDomain }));
+	return c.html(
+		renderPage(
+			`${BuildFacebookAdsLookupSection}${BuildWebsitePage}`,
+			{ customDomain },
+		),
+	);
+});
+
+app.post("/facebook-ads/search", async (c) => {
+	try {
+		const body = await c.req.parseBody();
+		const sourceUrl = String(body.adsLibraryUrl || "").trim();
+		const minAds = sanitizeMinAds(body.minAds);
+		const providedHtml = String(body.adsLibraryHtml || "").trim();
+		const html = providedHtml || (sourceUrl && (await resolveFacebookAdsLibraryHtml(sourceUrl)));
+
+		if (!html) {
+			return c.text(
+				"Provide an Ads Library URL or paste page HTML to search.",
+				400,
+			);
+		}
+
+		const matches = extractFacebookAdsAccounts(html, minAds);
+		const resultsHtml = matches.length
+			? `<div class="dataContainer">
+          <table class="dataTable">
+            <tr><th>Account</th><th>Ads found</th><th>Facebook link</th></tr>
+            ${matches
+							.map(
+								(match) => `
+              <tr>
+                <td>${escapeHtml(match.name)}</td>
+                <td>${match.adCount}</td>
+                <td><a class="table-link" href="${escapeHtml(match.href)}" target="_blank" rel="noopener noreferrer">${escapeHtml(match.href)}</a></td>
+              </tr>`,
+							)
+							.join("")}
+          </table>
+        </div>`
+			: `<div class="banner banner-warning">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 256 256"><path d="M236.8,188.09,149.35,36.22h0a24.76,24.76,0,0,0-42.7,0L19.2,188.09a23.51,23.51,0,0,0,0,23.72A24.35,24.35,0,0,0,40.55,224h174.9a24.35,24.35,0,0,0,21.33-12.19A23.51,23.51,0,0,0,236.8,188.09ZM222.93,203.8a8.5,8.5,0,0,1-7.48,4.2H40.55a8.5,8.5,0,0,1-7.48-4.2,7.59,7.59,0,0,1,0-7.72L120.52,44.21a8.75,8.75,0,0,1,15,0l87.45,151.87A7.59,7.59,0,0,1,222.93,203.8Z"/></svg>
+          <p>No Facebook accounts with ${minAds}+ ads were found in the supplied source.</p>
+        </div>`;
+
+		return c.html(
+			renderPage(
+				`<div class="form-container">
+          <h3>Facebook Ads Library results</h3>
+          <p style="color: var(--kumo-muted-foreground); margin-bottom: 20px;">Showing Facebook advertiser account links with at least ${minAds} ads.</p>
+          ${resultsHtml}
+          <a href="/" class="btn btn-secondary" style="text-decoration: none;">Back</a>
+        </div>`,
+				{ customDomain: c.env.CUSTOM_DOMAIN },
+			),
+		);
+	} catch (error) {
+		const errorMessage =
+			error instanceof Error ? error.message : "Unknown error";
+		return c.html(
+			renderPage(
+				`<div class="form-container">
+          <h3>Facebook Ads Library results</h3>
+          <div class="banner banner-warning">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 256 256"><path d="M236.8,188.09,149.35,36.22h0a24.76,24.76,0,0,0-42.7,0L19.2,188.09a23.51,23.51,0,0,0,0,23.72A24.35,24.35,0,0,0,40.55,224h174.9a24.35,24.35,0,0,0,21.33-12.19A23.51,23.51,0,0,0,236.8,188.09ZM222.93,203.8a8.5,8.5,0,0,1-7.48,4.2H40.55a8.5,8.5,0,0,1-7.48-4.2,7.59,7.59,0,0,1,0-7.72L120.52,44.21a8.75,8.75,0,0,1,15,0l87.45,151.87A7.59,7.59,0,0,1,222.93,203.8Z"/></svg>
+            <p>${escapeHtml(errorMessage)}</p>
+          </div>
+          <a href="/" class="btn btn-secondary" style="text-decoration: none;">Back</a>
+        </div>`,
+				{ customDomain: c.env.CUSTOM_DOMAIN },
+			),
+			400,
+		);
+	}
 });
 
 /*
@@ -468,14 +552,18 @@ app.get("/admin", withDbAndInit, async (c) => {
  * Initialize example data (now optional since auto-init handles schema)
  */
 app.get("/init", withDbAndInit, async (c) => {
-	const scripts = await GetScriptsInDispatchNamespace(c.env);
-	// Handle case where scripts is null/undefined (e.g., in tests or when API unavailable)
-	if (scripts && Array.isArray(scripts)) {
-		await Promise.all(
-			scripts.map(async (script) =>
-				DeleteScriptInDispatchNamespace(c.env, script.id),
-			),
-		);
+	try {
+		const scripts = await GetScriptsInDispatchNamespace(c.env);
+		// Handle case where scripts is null/undefined (e.g., in tests or when API unavailable)
+		if (scripts && Array.isArray(scripts)) {
+			await Promise.all(
+				scripts.map(async (script) =>
+					DeleteScriptInDispatchNamespace(c.env, script.id),
+				),
+			);
+		}
+	} catch (error) {
+		console.error(error);
 	}
 	await Initialize(c.var.db);
 	return Response.redirect(c.req.url.replace("/init", ""));
@@ -686,3 +774,12 @@ app.get(
 );
 
 export default app;
+
+function escapeHtml(value: string): string {
+	return value
+		.replace(/&/g, "&amp;")
+		.replace(/</g, "&lt;")
+		.replace(/>/g, "&gt;")
+		.replace(/"/g, "&quot;")
+		.replace(/'/g, "&#39;");
+}
